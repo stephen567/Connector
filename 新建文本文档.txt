@@ -1,0 +1,156 @@
+1. boss类accept，nioworker类处理业务（默认nioworker个数是runtime.getruntime().availableprocessors()),在处理新来请求时，nioworker读完已收到的数据到channelbuffer中，之后触发channelpipeline中的channelhandler流；可以通过channelhandler链来控制执行流向；
+
+关注netty源码下transport.channel下代码；
+
+http://www.cnblogs.com/LUA123/p/7258740.html
+
+2. serverhandler
+******
+public class DiscardServerHandler extends ChannelInboundHandlerAdapter { // (1)
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) { // (2)
+        // Discard the received data silently.
+        ((ByteBuf) msg).release(); // (3)
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) { // (4)
+        // Close the connection when an exception is raised.
+        cause.printStackTrace();
+        ctx.close();
+    }
+}
+*****
+public class ChannelInboundHandlerAdapter extends ChannelHandlerAdapter implements ChannelInboundHandler
+******
+public class DiscardServer {
+
+.......
+    public void run() throws Exception {
+        EventLoopGroup bossGroup = new NioEventLoopGroup(); // (1)
+        EventLoopGroup workerGroup = new NioEventLoopGroup();
+        try {
+            ServerBootstrap b = new ServerBootstrap(); // (2)
+            b.group(bossGroup, workerGroup)
+             .channel(NioServerSocketChannel.class) // (3)
+             .childHandler(new ChannelInitializer<SocketChannel>() { // (4)
+                 @Override
+                 public void initChannel(SocketChannel ch) throws Exception {
+                     ch.pipeline().addLast(new DiscardServerHandler());
+                 }
+             })
+             .option(ChannelOption.SO_BACKLOG, 128)          // (5)
+             .childOption(ChannelOption.SO_KEEPALIVE, true); // (6)
+    
+            // Bind and start to accept incoming connections.
+            ChannelFuture f = b.bind(port).sync(); // (7)
+    
+            // Wait until the server socket is closed.
+            // In this example, this does not happen, but you can do that to gracefully
+            // shut down your server.
+            f.channel().closeFuture().sync();
+        } finally {
+            workerGroup.shutdownGracefully();
+            bossGroup.shutdownGracefully();
+        }
+    }
+}
+1)EventLoopGroup   bossgroup  workergroup
+2)Bootstrap    b
+             b.group(bossGroup, workerGroup)
+             .channel(NioServerSocketChannel.class) // (3)
+             .childHandler(new ChannelInitializer<SocketChannel>() { // (4)
+                 @Override
+                 public void initChannel(SocketChannel ch) throws Exception {
+                     ch.pipeline().addLast(new DiscardServerHandler());
+                 }
+             })
+             .option(ChannelOption.SO_BACKLOG, 128)          // (5)
+             .childOption(ChannelOption.SO_KEEPALIVE, true); // (6)
+1. NioEventLoopGroup 是一个处理IO操作的多线程时间循环。Netty为了不同的传输协议提供了很多EventLoopGroup接口的实现。我们在这个例子里实现了一个服务端程序，所以我们用了两个NioEventLoopGroup。第一个，经常被称作“boss”，用来接收将要到来的连接。第二个，经常被称作“worker”，一旦Boss接收到连接并把连接注册到Worker，就开始处理接收到的连接的通信。使用多少线程以及如何将它们映射到创建的通道中取决于EventLoopGroup的具体实现，可以通过构造函数来配置。
+2. ServerBootstrap作为一个辅助类去设置一个服务器。你可以直接用一个Channel来设置服务器。然而，请注意那是一个繁琐的过程，大多数情况下不需要你那样做。
+3. 在这里，我们特别使用NioServerSocketChannel来实例化一个新通道去接受将要到来的连接。
+4. 这里的处理程序始终被新接收的Channel评估。（这句话不知到咋解释了）。ChannelInitializer是一个特殊的处理程序，目的是帮助用户配置一个新Channel。您可能想要通过添加一个处理程序比如DiscardServerHandler来配置一个新管道的ChannelPipeline来实现你的网络程序。随着应用程序的复杂化，您可能会在管道中添加更多的处理程序，并将这个匿名类最终提取到顶级类中。
+5. 您还可以在Channel的具体实现设置一些特殊的参数。我们现在在写一个TCP/IP的服务器，所以允许我们设置一些套接字的选项，例如：tcpNoDelay，keepAlive。请参考API文档中ChannelOption，特别是ChannelConfig的具体实现类，以便去获得关于ChannelOptions相关支持的概述。
+6. 你注意到option()和childOption()了吗？option()是为了NioServerSocketChannel接受新的连接，childOption()是为了那些被父ServerChannel接受的Channels，在这里ServerChannel指的是NioServerSocketChannel。
+7. 我们现在已经准备好了。最后剩下绑定端口和启动服务器。在这里我们绑定8080端口。你可以根据需要调用bind()方法多次。
+现在你已经完成了第一台Netty服务器。
+
+*******channelactive, ctx.alloc   addListener
+public class TimeServerHandler extends ChannelInboundHandlerAdapter {
+
+    @Override
+    public void channelActive(final ChannelHandlerContext ctx) { // (1)
+        final ByteBuf time = ctx.alloc().buffer(4); // (2)
+        time.writeInt((int) (System.currentTimeMillis() / 1000L + 2208988800L));
+        
+        final ChannelFuture f = ctx.writeAndFlush(time); // (3)
+        f.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) {
+                assert f == future;
+                ctx.close();
+            }
+        }); // (4)
+    }
+1. 正如解释的那样，当建立好连接并且准备好产生流量的时候会调用channelActive() 方法，让我们在这个方法中写入一个32位整数来代表当前时间 
+2. 为了发送一个新消息，我们需要开辟出一块缓冲区来存放我们的消息。我们将要写一个32位的整数，所以我们需要一个容量至少为4字节的ByteBuf。通过ChannelHandlerContext.alloc()获得当前的 ByteBufAllocator，并分配出一块缓冲区。
+3. 像往常一样，我们写入包装好的消息。
+等等，flip在哪？在NIO里发消息之前我们不调用一下java.nio.ByteBuffer.flip()吗？ByteBuf没有那个方法因为他有两个指针，一个为了读操作，一个为了写操作。当你写点什么的时候，写指针会向前移动而读指针不会移动。读指针和写指针分别代表消息的开始和结束位置。
+相比之下，NIO缓冲区没有提供一种清晰地方式指出消息的开始和结束，除非调用flip方法。当你忘记flip的时候你会陷入麻烦，因为将要发送的内容为空或者是错误的数据。这样的错误不会发生在Netty，因为不同的操作类型我们有不同的指针。当你使用它的时候你会发现他让你的生活更容易，因为不用再考虑flip了。
+另外一点需要注意的是：ChannelHandlerContext.write()（还有writeAndFlush()）方法返回一个ChannelFuture对象，一个ChannelFuture对象代表还没有发生的IO操作，这意味着任何请求的操作可能尚未执行，因为所有操作在Netty中都是异步的。比如，在消息发送之前，下面的代码也会关闭连接：
+Channel ch = ...;
+ch.writeAndFlush(message);
+ch.close();
+因此，当 ChannelFuture执行完成后你需要调用 close()方法， ChannelFuture是由write()方法返回的，并且他会告诉所有的监听者当write操作完成时。请注意，close()也可能不会立即关闭连接，并且他返回一个ChannelFuture。
+4. 当请求完成的时候我们怎样得到通知呢？就像给返回的ChannelFuture添加ChannelFutureListener一样，在这里我们创建一个匿名内部类ChannelFutureListener，当操作完成时，我们关闭Channel
+或者您可以的使用系统预定义的监听器来简化代码
+f.addListener(ChannelFutureListener.CLOSE);
+
+
+
+
+*****client
+public class TimeClientHandler extends ChannelInboundHandlerAdapter {
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+        ByteBuf m = (ByteBuf) msg; // (1)
+        try {
+            long currentTimeMillis = (m.readUnsignedInt() - 2208988800L) * 1000L;
+            System.out.println(new Date(currentTimeMillis));
+            ctx.close();
+        } finally {
+            m.release();
+        }
+    }
+1.在TCP / IP中，Netty将从对等体发送的数据读入ByteBuf。
+
+
+
+*******
+可以添加多个ChannelHandler到ChannelPipeline上。因此，您可以将一个庞大的ChannelHandler分割成许多小模块，以减少应用程序的复杂性。例如，您可以分割 TimeClientHandler 成两个处理程序：
+TimeDecoder 解决碎片问题，和
+TimeClientHandler的简单初始程序
+现在我们有另外一个处理程序要添加到 ChannelPipeline，我们需要修改TimeClient中 ChannelInitializer 的实现部分：
+b.handler(new ChannelInitializer<SocketChannel>() {
+    @Override
+    public void initChannel(SocketChannel ch) throws Exception {
+        ch.pipeline().addLast(new TimeDecoder(), new TimeClientHandler());
+    }
+});
+
+用POJO代替bytebuf
+
+内存池分配
+TCP参数配置
+http://www.infoq.com/cn/articles/netty-high-performance
+
+
+Netty中，耗时的业务逻辑代码应该写在哪？
+https://www.zhihu.com/question/35487154
+
+
+
+
+

@@ -3,7 +3,7 @@ package com.syscom.banksys.connector.client;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 
-public class MsgClientHandler extends SimpleChannelInboundHandler 
+public class MsgClientHandler1 extends SimpleChannelInboundHandler 
 {
 
 	@Override

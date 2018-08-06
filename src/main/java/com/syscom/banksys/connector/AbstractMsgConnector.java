@@ -1,32 +1,28 @@
 package com.syscom.banksys.connector;
 
 import com.syscom.banksys.connector.ConnectorConfiguration;
-import com.syscom.banksys.connector.ConnectorConfigurer;
-import com.syscom.banksys.connector.MessageListener;
+//import com.syscom.banksys.connector.MessageListener;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.SocketAddress;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
 public abstract class AbstractMsgConnector<
-C extends ConnectorConfiguration,
+C extends ConnectorConfiguration, 
 B extends AbstractBootstrap>
 {
     protected final Logger logger = LoggerFactory.getLogger(getClass());
-    // @VisibleForTest
-//    final CompositeIsoMessageHandler<M> messageHandler;
-//    private final MessageFactory<M> isoMessageFactory;
+
     private final AtomicReference<Channel> channelRef = new AtomicReference<>();
     private final C configuration;
-    private ConnectorConfigurer<C, B> configurer;
     private SocketAddress socketAddress;
     private EventLoopGroup bossEventLoopGroup;
     private EventLoopGroup workerEventLoopGroup;
@@ -38,15 +34,9 @@ B extends AbstractBootstrap>
         this.configuration = configuration;
     }
 
-    /**
-     * Making connector ready to create a connection / bind to port.
-     * Creates a Bootstrap
-     *
-     * @see AbstractBootstrap
-     */
     public void init() 
     {
-        logger.info("Initializing");
+        logger.info("通讯端初始化！");
         bossEventLoopGroup = createBossEventLoopGroup();
         workerEventLoopGroup = createWorkerEventLoopGroup();
         bootstrap = createBootstrap();
@@ -59,6 +49,7 @@ B extends AbstractBootstrap>
             workerEventLoopGroup.shutdownGracefully();
             workerEventLoopGroup = null;
         }
+        
         if (bossEventLoopGroup != null) 
         {
             bossEventLoopGroup.shutdownGracefully();
@@ -72,21 +63,6 @@ B extends AbstractBootstrap>
                 Boolean.parseBoolean(System.getProperty(
                         "nfs.rpc.tcp.nodelay", "true")))
                 .option(ChannelOption.AUTO_READ, true);
-
-        if (configurer != null) 
-        {
-            configurer.configureBootstrap(bootstrap, configuration);
-        }
-    }
-
-    protected ConnectorConfigurer<C, B> getConfigurer() 
-    {
-        return configurer;
-    }
-
-    public void setConfigurer(ConnectorConfigurer<C, B> connectorConfigurer) 
-    {
-        this.configurer = connectorConfigurer;
     }
 
     public SocketAddress getSocketAddress() 

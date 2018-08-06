@@ -2,23 +2,23 @@ package com.syscom.banksys.connector;
 
 public abstract class ConnectorConfiguration 
 {
-    /**
-     * Default read/write idle timeout in seconds (ping interval) = 30 sec.
-     *
-     * @see #setIdleTimeout(int)
-     */
     public static final int DEFAULT_IDLE_TIMEOUT_SECONDS = 30;
-
-    /**
-     * Default {@link #maxFrameLength} (max message length) = 8192
-     *
-     * @see #setMaxFrameLength(int)
-     */
     public static final int DEFAULT_MAX_FRAME_LENGTH = 8192;
+    
+    
     private int maxFrameLength = DEFAULT_MAX_FRAME_LENGTH;
     private int idleTimeout = DEFAULT_IDLE_TIMEOUT_SECONDS;
     private boolean replyOnError = false;
     private boolean addLoggingHandler = true;
+    
+    private String Host;
+    private int Port;
+    
+    private String RqstQueueName;
+    private String RespQueueName;
+    private String MQUser;
+    private String MQPasswd;
+    private String MQPort;
 
 
     protected ConnectorConfiguration(Builder builder) 

@@ -10,24 +10,24 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.LineBasedFrameDecoder;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.string.StringDecoder;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
-public class MsgClient extends AbstractMsgConnector<ClientConfiguration, Bootstrap> 
+public class MsgClient4 extends AbstractMsgConnector<ClientConfiguration, Bootstrap> 
 {
 
     private ReconnectOnCloseListener reconnectOnCloseListener;
 
-    public MsgClient(SocketAddress socketAddress, ClientConfiguration config ) 
+    public MsgClient4(SocketAddress socketAddress, ClientConfiguration config ) 
     {
         super(config );
         setSocketAddress(socketAddress);
     }
 
-    public MsgClient(SocketAddress socketAddress ) 
+    public MsgClient4(SocketAddress socketAddress ) 
     {
         this(socketAddress, ClientConfiguration.getDefault() );
     }
@@ -84,8 +84,7 @@ public class MsgClient extends AbstractMsgConnector<ClientConfiguration, Bootstr
     				public void initChannel(SocketChannel ch)
     				throws Exception
     				{
-    					ch.pipeline().addLast(new LineBasedFrameDecoder(8192));
-    					ch.pipeline().addLast(new StringDecoder());
+    					ch.pipeline().addLast(new LengthFieldBasedFrameDecoder(2048,0,2,0,4));
     					ch.pipeline().addLast(new MsgClientHandler());
     				}
     			});

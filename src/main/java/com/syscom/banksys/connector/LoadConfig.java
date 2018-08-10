@@ -13,11 +13,10 @@ import org.slf4j.LoggerFactory;
 
 public class LoadConfig 
 {
+	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
 	private Properties properties;
 	private String configFilePath;
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
 	public LoadConfig() 
 	{
@@ -107,6 +106,11 @@ public class LoadConfig
 
 		value = properties.getProperty(key);
 		return value;
+	}
+	
+	public Properties returnProperties()
+	{
+		return this.properties;
 	}
 
 	public void printProps() 

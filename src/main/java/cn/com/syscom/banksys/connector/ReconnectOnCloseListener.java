@@ -1,11 +1,11 @@
-package com.syscom.banksys.connector;
-
-import com.syscom.banksys.connector.client.MsgClient;
+package cn.com.syscom.banksys.connector;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import org.slf4j.Logger;
+
+import cn.com.syscom.banksys.connector.client.MsgClient4;
 
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -18,12 +18,12 @@ public class ReconnectOnCloseListener implements ChannelFutureListener
 
     private final Logger logger = getLogger(ReconnectOnCloseListener.class);
 
-    private final MsgClient client;
+    private final MsgClient4 client;
     private final int reconnectInterval;
     private final AtomicBoolean disconnectRequested = new AtomicBoolean(false);
     private final ScheduledExecutorService executorService;
 
-    public ReconnectOnCloseListener(MsgClient client, int reconnectInterval, ScheduledExecutorService executorService) 
+    public ReconnectOnCloseListener(MsgClient4 client, int reconnectInterval, ScheduledExecutorService executorService) 
     {
         this.client = client;
         this.reconnectInterval = reconnectInterval;

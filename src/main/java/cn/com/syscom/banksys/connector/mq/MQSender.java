@@ -1,4 +1,4 @@
-package com.syscom.banksys.connector;
+package cn.com.syscom.banksys.connector.mq;
 
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Connection;
@@ -14,6 +14,9 @@ public class MQSender
 	private String QUEUE_NAME;
 	private Channel MQChannel;
 	private Connection connection;
+	private String MQUser;
+	private String MQPasswd;
+	
 	
 	public MQSender(String host) throws Exception
 	{

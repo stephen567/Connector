@@ -1,4 +1,4 @@
-package com.syscom.banksys.connector.handler;
+package cn.com.syscom.banksys.connector.handler;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -6,6 +6,12 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
 import java.nio.ByteOrder;
 
+/**
+ * 
+ * @author Lisq
+ *
+ * 增加参数输出报文长度域字节数，输出报文中可带报文长度字节数
+ */
 public class CustomLengthFieldBasedFrameDecoder extends LengthFieldBasedFrameDecoder 
 {
     private final int lengthFieldLength;

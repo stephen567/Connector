@@ -1,4 +1,4 @@
-package com.syscom.banksys.connector;
+package cn.com.syscom.banksys.connector;
 
 import java.io.BufferedReader;
 import java.io.File;

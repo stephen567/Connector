@@ -1,7 +1,4 @@
-package com.syscom.banksys.connector;
-
-import com.syscom.banksys.connector.ConnectorConfiguration;
-//import com.syscom.banksys.connector.MessageListener;
+package cn.com.syscom.banksys.connector;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
@@ -11,6 +8,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import cn.com.syscom.banksys.connector.ConnectorConfiguration;
 
 import java.net.SocketAddress;
 import java.util.concurrent.atomic.AtomicReference;

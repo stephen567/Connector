@@ -1,4 +1,4 @@
-package com.syscom.banksys.connector.client;
+package cn.com.syscom.banksys.connector.client;
 
 
 import io.netty.buffer.ByteBuf;
@@ -8,50 +8,66 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
+import cn.com.syscom.banksys.connector.handler.Heartbeats;
+import cn.com.syscom.banksys.connector.mq.ConnectorMQSender;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.text.SimpleDateFormat;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import com.syscom.banksys.connector.Heartbeats;
+import java.text.SimpleDateFormat;
 
 @ChannelHandler.Sharable
 public class MsgClientHandler extends SimpleChannelInboundHandler 
 {
 	private final Logger logger = LoggerFactory.getLogger(getClass());
-	//private final SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+	/*
+	private final SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 	private String FormattedDate()
 	{
 		final SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 		
 		return df.format(System.currentTimeMillis());
 	}
+	*/
 	
 	private Channel channel;
 
 	public MsgClientHandler()
 	{
-		logger.info("{}: 通讯客户端处理进程MsgClientHandler初始化", FormattedDate());
+		logger.debug("通讯客户端处理进程MsgClientHandler初始化");
 	}
 	
 	public void channelActive(ChannelHandlerContext ctx)
 	{
-		logger.info("{}: 通讯客户端开始连接服务器......", FormattedDate());
 		this.channel = ctx.channel();
+		
+		ctx.fireChannelInactive();
 	}
 	
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception 
 	{
 		// TODO Auto-generated method stub
-		logger.info("{}: 开始读取报文", FormattedDate());
+		logger.debug("开始读取报文");
+		//int len = ((ByteBuf)msg).readableBytes();
+		
 		ByteBuf buf = (ByteBuf)msg;
+		//int len = buf.readableBytes();
+		
 		byte[] bytes = new byte[buf.readableBytes()];
 		buf.readBytes(bytes);
 		
 		String message = bytestoHexString(bytes);
-		logger.info("{}: 通讯客户端读取到报文内容为： {}", FormattedDate(), message);
+		logger.debug("通讯客户端读取到报文内容为： {}", message);
+
+		//ApplicationContext context = new ClassPathXmlApplicationContext("Producer.xml");
+		//RabbitTemplate amqptemplate = context.getBean(RabbitTemplate.class);
+		
+		//amqptemplate.convertAndSend(message);
+		ConnectorMQSender MQSender = new ConnectorMQSender("Producer.xml");
+		MQSender.convertAndSend(message);
 	}
 
     @Override
@@ -63,7 +79,7 @@ public class MsgClientHandler extends SimpleChannelInboundHandler
         	
             if (state == IdleState.WRITER_IDLE) 
             {
-            	logger.info("{}: 发送写空闲心跳包！", FormattedDate());
+            	logger.info("发送写空闲心跳包！");
                 ctx.writeAndFlush(Heartbeats.heartbeatContent());
             }
         } else 
@@ -96,8 +112,10 @@ public class MsgClientHandler extends SimpleChannelInboundHandler
 	
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
 	{
-		logger.error("{}: 读取交易报文异常退出：{} ", FormattedDate(), cause.getMessage());
+		logger.error("读取交易报文异常退出：{} ", cause.getMessage());
 		ctx.close();
 	}
+	
+	
 
 }

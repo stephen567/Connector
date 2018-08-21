@@ -1,4 +1,4 @@
-package com.syscom.banksys.connector.client;
+package cn.com.syscom.banksys.connector.client;
 
 
 import io.netty.bootstrap.Bootstrap;
@@ -13,6 +13,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.HashedWheelTimer;
 
@@ -27,19 +28,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.syscom.banksys.connector.ConnectionWatchdog;
-//import com.syscom.banksys.connector.ConnectorIdleStateTrigger;
+import cn.com.syscom.banksys.connector.handler.ConnectionWatchdog;
+import cn.com.syscom.banksys.connector.handler.CustomLengthFieldBasedFrameDecoder;
 
 public class MsgClient 
 {
 	private final Logger logger = LoggerFactory.getLogger(getClass());
-	//private final SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-	private String FormattedDate()
-	{
-		final SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-		
-		return df.format(System.currentTimeMillis());
-	}
 	
 	private Channel channel;
 	private EventLoopGroup group;
@@ -58,39 +52,21 @@ public class MsgClient
 	
 	private String RemoteServerIP = "192.168.10.176";
 	private int RemotePort = 9999;
+	private boolean reConnect = true;
+	private int MaxReconnectTimes = 12;
 	
-    public MsgClient(String host, int port) 
-    {
-        this.RemoteServerIP = host;
-        this.RemotePort = port;
-    }
     
     public MsgClient()
     {
     	init();
     }
-
-    public void start() throws Exception
+    
+    public MsgClient(String host, int port) 
     {
-    	group = new NioEventLoopGroup();
-    	
-    	try
-    	{
-    		bootstrap = new Bootstrap();
-    		bootstrap.group(group)
-    		 .channel(NioSocketChannel.class)
-    		 .remoteAddress(new InetSocketAddress(RemoteServerIP, RemotePort))
-    		 .handler(new MsgChannelHandlerInitializer());
-    		
-    		ChannelFuture f = bootstrap.connect().sync();
-    		logger.info("{}: 通讯客户端连接到服务器。 IP:{}  Port:{} ",FormattedDate(), this.RemoteServerIP, RemotePort);
-    		
-    		f.channel().closeFuture().sync();
-    	} 
-    	finally
-    	{
-    		group.shutdownGracefully().sync();
-    	}
+        this.RemoteServerIP = host;
+        this.RemotePort = port;
+        
+        init();
     }
     
     protected void init()
@@ -110,8 +86,16 @@ public class MsgClient
     
     public Channel connect(String RemoteIP, int port)
     {
+    	this.RemoteServerIP = RemoteIP;
+    	this.RemotePort = port;
+    	
+    	return connect();
+    }
+    
+    public Channel connect( )
+    {
        // 重连watchdog
-        final ConnectionWatchdog watchdog = new ConnectionWatchdog(bootstrap, timer,RemoteIP, port, 12) {
+        final ConnectionWatchdog watchdog = new ConnectionWatchdog(bootstrap, timer,this.RemoteServerIP, this.RemotePort, this.MaxReconnectTimes) {
            public ChannelHandler[] handlers() {
                return new ChannelHandler[] {
                 		//将自己[ConnectionWatchdog]装载到handler链中，当链路断掉之后，会触发ConnectionWatchdog #channelInActive方法
@@ -120,12 +104,12 @@ public class MsgClient
                         new IdleStateHandler(0, 30, 0, TimeUnit.SECONDS),
                         //实现userEventTriggered方法，并在state是WRITER_IDLE的时候发送一个心跳包到sever端，告诉server端我还活着
                         //idleStateTrigger,
-                        new LengthFieldBasedFrameDecoder(2048,0,2,2,4),
+                        new CustomLengthFieldBasedFrameDecoder(2048,0,2,2,4,2),
                         msgHandler
                 };
            }};
 
-        watchdog.setReconnect(true);
+        watchdog.setReconnect(this.reConnect);
 
         try 
         {
@@ -138,7 +122,8 @@ public class MsgClient
                    }
                 });
 
-               future = bootstrap.connect(RemoteIP, port);
+       		   logger.info("通讯客户端开始连接服务器......");
+               future = bootstrap.connect(this.RemoteServerIP, this.RemotePort);
            }
 
             future.sync();
@@ -148,7 +133,13 @@ public class MsgClient
             e.printStackTrace();
         }
         
-        logger.info("{}: 通讯客户端连接到服务器。 IP:{}  Port:{} ",FormattedDate(), this.RemoteServerIP, RemotePort);
+        if (channel != null)
+        {
+        	logger.info("通讯客户端连接服务器成功。 IP:{}  Port:{} ", this.RemoteServerIP, this.RemotePort);
+        } else
+        {
+        	logger.error("通讯客户端连接服务器失败。 IP:{}  Port:{} ", this.RemoteServerIP, this.RemotePort);
+        }
 
 		return channel;
    }
@@ -167,18 +158,6 @@ public class MsgClient
 		if (group != null)
 			group.shutdownGracefully();
 		
-		logger.info("{}: 通讯客户端关闭!", FormattedDate());
-	}
-	
-
-	public static class MsgChannelHandlerInitializer extends ChannelInitializer<SocketChannel>
-	{
-		@Override
-		protected void initChannel(final SocketChannel ch) throws Exception
-		{
-			ch.pipeline().addLast(new IdleStateHandler(0, 10, 0, TimeUnit.SECONDS));
-			ch.pipeline().addLast(new LengthFieldBasedFrameDecoder(2048,0,2,2,4));
-			ch.pipeline().addLast(new MsgClientHandler());
-		}
+		logger.info("通讯客户端关闭!");
 	}
 }

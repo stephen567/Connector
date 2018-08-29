@@ -16,17 +16,15 @@ public class VisaClientConnector
 	
 	public static void main(String[] args)
 	{
-		//Channel ch;
 		//String configFilePath = "D:/WorkCode/Connector/src/main/resources/VISAComm.properties";
 		String configFilePath = "VISAComm.properties";
+		String ReplyMQConfig = "MQReply.properties";
 		
 		MsgClient client = new MsgClient(configFilePath);
 		
 		try
 		{
 			ch = client.connect();
-			//ch = client.connect("192.168.10.176", 9999);
-			//channel = client.connect("192.168.10.73", 9999);
 			
 			if (ch == null)
 			{
@@ -40,7 +38,7 @@ public class VisaClientConnector
 		}
 		
 		MQReply reply = new MQReply(ch);
-		reply.loadConfig("MQReply.properties");
+		reply.loadConfig(ReplyMQConfig);
 		
 		reply.init();
 	}
